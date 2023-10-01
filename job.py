@@ -1,5 +1,5 @@
 from sensor import ClimateSensor, SensorReadException
-from database import ClimateData, Database
+from database import create_climate_data, Database
 import time, datetime
 
 def main():
@@ -11,7 +11,7 @@ def main():
         try:
             temperature, humidity = sensor.read()
             print(f'Read sensor {(temperature, humidity)} {datetime.datetime.now()}')
-            data = ClimateData(temperature, humidity)
+            data = create_climate_data(temperature, humidity)
             db.write(data)
 
             time.sleep(10 * 60)

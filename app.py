@@ -22,7 +22,7 @@ def get_database(name):
 @st.cache_data(ttl=60) # invalidate cache after 1 minute
 def get_data():
     raw_data = get_database('climatedb').read()
-    return pd.DataFrame([d.to_dict() for d in raw_data])
+    return pd.DataFrame(raw_data, columns=ClimateData._fields)
 
 
 def format_datetime(dt):
@@ -35,18 +35,22 @@ st.subheader('Historic data')
 
 data = get_data()
 
-start, end = data.timestamp.min(), data.timestamp.max()
+if not data.empty:
+    start, end = data.timestamp.min(), data.timestamp.max()
 
-st.markdown(f"Measurements from **{format_datetime(start)}** to **{format_datetime(end)}**")
+    st.markdown(f"Measurements from **{format_datetime(start)}** to **{format_datetime(end)}**")
 
-fig = make_subplots(specs=[[{"secondary_y": True}]])
-fig.add_trace(go.Scatter(x=data.timestamp, y=data.temperature, name="temperature"), secondary_y=False)
-fig.add_trace(go.Scatter(x=data.timestamp, y=data.humidity, name="humidity"), secondary_y=True)
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    fig.add_trace(go.Scatter(x=data.timestamp, y=data.temperature, name="temperature"), secondary_y=False)
+    fig.add_trace(go.Scatter(x=data.timestamp, y=data.humidity, name="humidity"), secondary_y=True)
 
-fig.update_yaxes(title_text="°C", secondary_y=False)
-fig.update_yaxes(title_text="%", secondary_y=True)
+    fig.update_yaxes(title_text="°C", secondary_y=False)
+    fig.update_yaxes(title_text="%", secondary_y=True)
 
-st.plotly_chart(fig)
+    st.plotly_chart(fig)
+
+else:
+    st.write('No data recorded yet')
 
 
 st.subheader('Current data')

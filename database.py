@@ -1,9 +1,11 @@
+from collections import namedtuple
 import sqlite3
 import unittest
 import os
 import tempfile
 from datetime import datetime
 import pprint
+
 
 def parse_datetime(text):
     formats = [
@@ -20,37 +22,17 @@ def parse_datetime(text):
     raise ValueError(f"Could not parse the input string '{text}' into a datetime.")
 
 
-class ClimateData:
-    def __init__(self, temperature:float, humidity:float, timestamp=None):
-        if isinstance(timestamp, str):
-            self.timestamp = parse_datetime(timestamp)
-        elif isinstance(timestamp, datetime):
-            self.timestamp = timestamp
-        elif timestamp is None:
-            self.timestamp = None
-        else:
-            raise ValueError(f"Unsupported type for timestamp: {type(timestamp)}")
+ClimateData = namedtuple('ClimateData', ['temperature', 'humidity', 'timestamp'])
 
-        self.temperature = temperature
-        self.humidity = humidity
 
-    def __repr__(self):
-        return f'ClimateData[ts={self.timestamp}, temp={self.temperature}, humi={self.humidity}]'
+def create_climate_data(temperature: float, humidity: float, timestamp=None):
+    if isinstance(timestamp, str):
+        timestamp = parse_datetime(timestamp)
+    elif not isinstance(timestamp, (datetime, type(None))):
+        raise ValueError(f"Unsupported type for timestamp: {type(timestamp)}")
 
-    def to_tuple(self):
-        return self.timestamp, self.temperature, self.humidity
+    return ClimateData(temperature=temperature, humidity=humidity, timestamp=timestamp)
 
-    def to_dict(self):
-        return {'timestamp': self.timestamp,
-                'temperature': self.temperature,
-                'humidity': self.humidity}
-
-    def __eq__(self, other):
-        if not isinstance(other, ClimateData):
-            return False
-        return (self.timestamp == other.timestamp and
-                self.temperature == other.temperature and
-                self.humidity == other.humidity)
 
 class Database:
     def __init__(self, db_path):
@@ -72,15 +54,15 @@ class Database:
             )
         ''')
 
-    def write(self, data:ClimateData):
+    def write(self, data: ClimateData):
 
         timestamp = data.timestamp or datetime.now()
 
         cursor = self.conn.cursor()
         cursor.execute(f'''
-            INSERT INTO {self._tablename} (timestamp, temperature, humidity)
+            INSERT INTO {self._tablename} (temperature, humidity, timestamp)
             VALUES (?, ?, ?)
-        ''', (timestamp, data.temperature, data.humidity))
+        ''', (data.temperature, data.humidity, timestamp))
         self.conn.commit()
 
     def read(self, start=None, end=None):
@@ -98,8 +80,7 @@ class Database:
             ''')
 
         rows = cursor.fetchall()
-        return [ClimateData(*row) for row in rows]
-
+        return [create_climate_data(*row) for row in rows]
 
 
 class TestDatabase(unittest.TestCase):
@@ -115,8 +96,8 @@ class TestDatabase(unittest.TestCase):
 
     def test_write_and_read(self):
         # Sample data
-        data1 = ClimateData(25.0, 50.0, datetime(2023, 9, 29, 10, 0))
-        data2 = ClimateData(26.0, 55.0, datetime(2023, 9, 29, 11, 0))
+        data1 = create_climate_data(25.0, 50.0, datetime(2023, 9, 29, 10, 0))
+        data2 = create_climate_data(26.0, 55.0, datetime(2023, 9, 29, 11, 0))
 
         # Write data to the database
         self.db.write(data1)
